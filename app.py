@@ -1,34 +1,26 @@
 from flask import Flask, request, jsonify
-import csv
-import os
-from datetime import datetime
+from database import init_db, insert_sensor_data
 
 app = Flask(__name__)
+init_db()
 
 @app.route('/')
 def home():
     return 'API Activa'
 
-@app.route('/data', methods=['POST'])
-def receive_data():
-    data = request.get_json()
-
-    # Asegúrate de que los datos se reciban correctamente
-    if not data:
-        return jsonify({'error': 'No se recibieron datos'}), 400
-
-    # Crea el archivo CSV si no existe
-    file_exists = os.path.isfile('datos.csv')
-    with open('datos.csv', mode='a', newline='') as file:
-        writer = csv.writer(file)
-        if not file_exists:
-            writer.writerow(['fecha', 'temperatura', 'humedad', 'sensor'])
-
-        writer.writerow([
-            datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            data.get('temperatura'),
-            data.get('humedad'),
-            data.get('sensor')
-        ])
-
-    return jsonify({'message': 'Datos recibidos correctamente'}), 200
+@app.route('/datos', methods=['POST'])
+def recibir_datos():
+    try:
+        data = request.get_json()
+        insert_sensor_data(
+            sensor_id=data.get('sensor_id', 'esp32'),
+            temperatura=data.get('temperatura', 0),
+            humedad=data.get('humedad', 0),
+            humedad_suelo=data.get('humedad_suelo', 0),
+            presion=data.get('presion', 0),
+            acelerometro=str(data.get('acelerometro', {})),
+            giroscopio=str(data.get('giroscopio', {})),
+        )
+        return jsonify({'status': 'ok'}), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 400
